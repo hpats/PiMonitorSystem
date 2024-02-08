@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Values</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+    <div style="display: flex; gap: 20px;">
+        <!-- System Values on the left -->
+        <div>
+            <p>CPU Temp: </br><span id="latestTemperature"></span> °C</p>
+            <p>RAM: </br><span id="latestRam"></span> MB / <span id="maxRam"></span> MB</p>
+            <p>CPU %: </br><span id="latestCpu"></span>%</p>
+            <p>Disk Usage: </br><span id="usedSpace"></span>/<span id="allSpace"></span></p>
+            <p>RX: </br><span id="latestRX"></span></p>
+            <p>TX: </br><span id="latestTX"></span></p>
+        </div>
+
+        <!-- Chart on the right -->
+        <div style="width: 100%">
+            <canvas id="combinedChart" width="100%" height="20%"></canvas>
+            <canvas id="newDataChart" width="100%" height="20%"></canvas> <!-- Add a new canvas for the second chart -->
+        </div>
+    </div>
+
+    <h2>PiVPN Status:</h2>
+    <pre>{{ pivpn_status | safe }}</pre>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Function to create a line chart
+            function createLineChart(canvasId, labels, datasets) {
+                var ctx = document.getElementById(canvasId).getContext('2d');
+                return new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        scales: {
+                            x: {
+                                type: 'linear',
+                                position: 'bottom',
+                                title: {
+                                    display: false
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: false
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Fetch data from the '/json_data' endpoint
+            fetch('/json_data')
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data)
+                    if (data.length > 0) {
+                        var latestData = data[data.length - 1];
+
+                        // Extract data for the first chart
+                        var timestamps = [];
+                        var temperatureValues = [];
+                        var ramValues = [];
+                        var cpuValues = [];
+                        var diskValues = [];
+                        var diskPercentageValues = [];
+
+                        for (var i = 0; i < data.length; i++) {
+                            timestamps.push(new Date(data[i].date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }));
+                            temperatureValues.push(parseFloat(data[i].temperature));
+                            ramValues.push(parseFloat(data[i].ramperc));
+                            cpuValues.push(parseFloat(data[i].cpu));
+                            diskPercentageValues.push(parseFloat(data[i].diskperc));
+                        }
+
+                        // Create the first chart
+                        var ctx = document.getElementById('combinedChart').getContext('2d');
+                        var myLineChart = createLineChart('combinedChart', timestamps, [
+                            {
+                                label: 'Temperature',
+                                data: temperatureValues,
+                                fill: false,
+                                borderColor: 'red',
+                                borderWidth: 1,
+                                tension: 0.4,
+                                pointRadius: 0,
+                                pointStyle: 'none'
+                            },
+                            {
+                                label: '%RAM',
+                                data: ramValues,
+                                fill: false,
+                                borderColor: 'blue',
+                                borderWidth: 1,
+                                tension: 0.4,
+                                pointRadius: 0,
+                                pointStyle: 'none'
+                            },
+                            {
+                                label: '%CPU',
+                                data: cpuValues,
+                                fill: false,
+                                borderColor: 'green',
+                                borderWidth: 1,
+                                tension: 0.4,
+                                pointRadius: 0,
+                                pointStyle: 'none'
+                            },
+                            {
+                                label: '%Disk',
+                                data: diskPercentageValues,
+                                fill: false,
+                                borderColor: 'purple',
+                                borderWidth: 1,
+                                tension: 0.4,
+                                pointRadius: 0,
+                                pointStyle: 'none'
+                            }
+                        ]);
+
+                        // Display latest values for the first chart
+                        document.getElementById('latestTemperature').innerText = latestData.temperature;
+                        document.getElementById('latestRam').innerText = latestData.ram;
+                        document.getElementById('latestCpu').innerText = latestData.cpu;
+                        document.getElementById('usedSpace').innerText = latestData.usedspace;
+                        document.getElementById('maxRam').innerText = latestData.maxRam;
+                        document.getElementById('allSpace').innerText = latestData.allSpace;
+
+                        // Fetch data from the '/json_data_new' endpoint
+                        fetch('/json_dataWG')
+                            .then(response => response.json())
+                            .then(newData => {
+                                console.log(newData);
+                                if (newData.length > 0) {
+                                    var latestNewData = newData[newData.length - 1];
+
+                                    // Extract data for the second chart
+                                    var newTimestamps = [];
+                                    var newRXDiffValues = [];
+                                    var newTXDiffValues = [];
+
+                                    for (var i = 0; i < newData.length; i++) {
+                                        newTimestamps.push(new Date(newData[i].date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }));
+                                        newRXDiffValues.push(parseFloat((newData[i].RXdiff / 1000000).toFixed(2)));
+                                        newTXDiffValues.push(parseFloat((newData[i].TXdiff / 1000000).toFixed(2)));
+                                    }
+
+                                    // Create the second chart
+                                    var ctx = document.getElementById('newDataChart').getContext('2d');
+                                    var myLineChart = createLineChart('newDataChart', newTimestamps, [
+                                        {
+                                            label: 'RX Data',
+                                            data: newRXDiffValues,
+                                            borderColor: 'rgba(75, 192, 192, 1)', // Color for RX line
+                                            fill: false,
+                                            borderWidth: 1,
+                                            tension: 0.4,
+                                            pointRadius: 0,
+                                            pointStyle: 'none'
+                                        },
+                                        {
+                                            label: 'TX Data',
+                                            data: newTXDiffValues,
+                                            borderColor: 'rgba(255, 99, 132, 1)', // Color for TX line
+                                            fill: false,
+                                            borderWidth: 1,
+                                            tension: 0.4,
+                                            pointRadius: 0,
+                                            pointStyle: 'none'
+                                        }
+                                    ]);
+
+                                    // Display latest values for the second chart
+                                    document.getElementById('latestRX').innerText = formatValue(latestNewData.RX);
+                                    document.getElementById('latestTX').innerText = formatValue(latestNewData.TX);
+                                }
+                            });
+
+                        function formatValue(value) {
+                            if (value < 1000) {
+                                return value + " b";
+                            } else if (value < 1000000) {
+                                return (value / 1000).toFixed(2) + " KB";
+                            } else if (value < 1000000000) {
+                                return (value / 1000000).toFixed(2) + " MB";
+                            } else {
+                                return (value / 1000000000).toFixed(2) + " GB";
+                            }
+                        }
+                    }
+                });
+        });
+    </script>
+</body>
+
+</html>
