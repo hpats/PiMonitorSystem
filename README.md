@@ -2,6 +2,9 @@
 
 This project provides a simple system monitoring tool that collects and records various system metrics, including CPU temperature, RAM usage, CPU usage, and disk space. Additionally, it captures Wireguard interface statistics such as transmitted (TX) and received (RX) packets.
 
+[![example image 1](example_images/example_main_1.png)](#)
+[![example image 2](example_images/example_main_2.png)](#)
+
 ## Features
 
 - **System Monitoring:**
