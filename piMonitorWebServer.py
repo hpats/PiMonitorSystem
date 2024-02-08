@@ -102,8 +102,8 @@ def write_system_data_to_csv(data, wg_data):
     with open('system_data.csv', 'w', newline='') as csvfile:
         csvfile.writelines(lines)
 
-def write_wireguard_data_to_csv(wg_data, first_time, last_values):
     try:
+        first_time = False
         with open('wg0_data.csv', 'r') as csvfile:
             lines = csvfile.readlines()
             if lines:
@@ -117,16 +117,16 @@ def write_wireguard_data_to_csv(wg_data, first_time, last_values):
         first_time = True
         last_values = 0, 0
 
-    smaller_than_old_values = wg_data[1] < last_values[0] or wg_data[2] < last_values[1]
-    difference = (wg_data[1] - last_values[0], wg_data[2] - last_values[1])
+    smaller_than_old_values = wg_data_with_timestamp[1] < last_values[0] or wg_data_with_timestamp[2] < last_values[1]
+    difference = (wg_data_with_timestamp[1] - last_values[0], wg_data_with_timestamp[2] - last_values[1])
 
-    print(smaller_than_old_values, wg_data[1], last_values[0], wg_data[1] < last_values[0], wg_data[2] < last_values[1],
-          wg_data[2], last_values[1])
+    print(smaller_than_old_values, wg_data_with_timestamp[1], last_values[0], wg_data_with_timestamp[1] < last_values[0], wg_data_with_timestamp[2] < last_values[1],
+          wg_data_with_timestamp[2], last_values[1])
 
     if smaller_than_old_values or first_time:
-        stored_data = (wg_data[0], wg_data[1], wg_data[2], 0, 0)
+        stored_data = (wg_data_with_timestamp[0], wg_data_with_timestamp[1], wg_data_with_timestamp[2], 0, 0)
     else:
-        stored_data = (wg_data[0], wg_data[1], wg_data[2], difference[0], difference[1])
+        stored_data = (wg_data_with_timestamp[0], wg_data_with_timestamp[1], wg_data_with_timestamp[2], difference[0], difference[1])
 
     with open('wg0_data.csv', 'a', newline='') as csvfile:
         csv_writer = csv.writer(csvfile)
