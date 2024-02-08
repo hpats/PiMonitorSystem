@@ -1,51 +1,59 @@
-System Monitoring Application
-Overview
+# System Monitoring and Wireguard Statistics
 
-This Python application provides a simple system monitoring tool with a web interface. It collects and displays information about CPU temperature, RAM usage, CPU usage, disk space, and WireGuard VPN statistics. The data is stored in CSV files and can be accessed through the provided Flask web server.
-Prerequisites
+This project provides a simple system monitoring tool that collects and records various system metrics, including CPU temperature, RAM usage, CPU usage, and disk space. Additionally, it captures Wireguard interface statistics such as transmitted (TX) and received (RX) packets.
 
-Make sure you have the following installed:
+## Features
 
-    Python 3.x
-    Flask
-    WireGuard
+- **System Monitoring:**
+  - CPU Temperature
+  - RAM Usage
+  - CPU Usage
+  - Disk Space
 
-Installation
+- **Wireguard Statistics:**
+  - Transmitted (TX) Packets
+  - Received (RX) Packets
 
-    Clone this repository:
+## Requirements
 
-    bash
+- Python 3.x
+- Flask
+- Wireguard (PiVPN)
 
-git clone https://github.com/your-username/system-monitoring-app.git
-cd system-monitoring-app
+## Installation
 
-Install required dependencies:
+1. **Clone the repository:**
 
-bash
+   ```bash
+   git clone https://github.com/your-username/system-monitoring-app.git
+   cd system-monitoring-app
 
-pip install flask
+2. **Install required dependencies:**
 
-Run the application:
+   ```bash
+   pip install flask
+   
+2. **Run the application:**
 
-bash
+   ```bash
+   python piMonitorWebServer.py
 
-    python monitor.py
+## Usage
 
-Usage
+Visit http://localhost:5005 in your web browser to access the system monitoring dashboard.
 
-Visit http://localhost:5005 in your web browser to access the system monitoring dashboard. The dashboard provides both graphical and JSON representations of the system and WireGuard data.
-Endpoints
+## Endpoints
 
     /: Provides an overview of the system status, including PiVPN status.
     /json_data: Returns system data in JSON format.
     /json_dataWG: Returns WireGuard data in JSON format.
 
-Customization
+## Customization
 
 Feel free to customize the application to suit your needs. You can modify the monitoring intervals, add new features, or enhance the web interface.
 Contributing
 
 Contributions are welcome! If you find a bug or have a suggestion, please open an issue or submit a pull request.
-License
+##License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
