@@ -51,9 +51,9 @@ Visit http://localhost:5005 in your web browser to access the system monitoring 
 ## Customization
 
 Feel free to customize the application to suit your needs. You can modify the monitoring intervals, add new features, or enhance the web interface.
-Contributing
+## Contributing
 
 Contributions are welcome! If you find a bug or have a suggestion, please open an issue or submit a pull request.
-##License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
