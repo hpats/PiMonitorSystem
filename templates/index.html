@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>System Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg: #f9fbfd;
+            --text: #1f2a30;
+            --muted: #66788a;
+            --primary: #0d6efd;
+            --card: #ffffff;
+            --card-border: #e3e8ef;
+            --highlight: #00ffc8;
+        }
+
+        [data-theme="dark"] {
+            --bg: #0f1117;
+            --text: #e4e6eb;
+            --muted: #a0aec0;
+            --primary: #00ffc8;
+            --card: #1c1e21;
+            --card-border: #2d2f34;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            padding: 2rem;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+        }
+
+        .dashboard {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        .card {
+            background-color: var(--card);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.03);
+        }
+
+        .header-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+        }
+
+        .info-block {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+        }
+
+        .info-block span {
+            display: flex;
+            align-items: center;
+            font-size: 1rem;
+        }
+
+        .info-block strong {
+            margin-left: 0.5rem;
+            color: var(--muted);
+        }
+
+        .load-avg {
+            margin-top: 0.5rem;
+            display: grid;
+            gap: 0.3rem;
+        }
+
+        .metrics-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .metrics-group {
+            flex: 1 1 280px;
+            background-color: var(--card);
+            padding: 1rem;
+            border-radius: 10px;
+            border: 1px solid var(--card-border);
+        }
+
+        .metrics-group h3 {
+            margin-bottom: 0.75rem;
+            font-size: 1.2rem;
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: 0.4rem;
+            color: var(--primary);
+        }
+
+        .metric-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.4rem 0;
+            font-size: 0.95rem;
+            border-bottom: 1px dashed #ddd;
+        }
+
+        .metric-item span {
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        canvas {
+            width: 100% !important;
+            max-height: 400px;
+        }
+
+        .section {
+            margin-top: 2rem;
+        }
+
+        .status-box {
+            background-color: #f1f5f9;
+            border-left: 4px solid var(--primary);
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+
+        .metric-item span.low {
+            color: #007BFF;
+            font-weight: 600;
+        }
+
+        /* green */
+        .metric-item span.medium {
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        /* yellow */
+        .metric-item span.high {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        /* red */
+    </style>
+</head>
+
+<body>
+    <h1>🖥 System Dashboard</h1>
+
+    <section class="dashboard">
+
+        <div class="metrics-row" id="metricsContainer"></div>
+
+        <div class="card">
+            <canvas id="combinedChart"></canvas>
+        </div>
+        <div class="card">
+            <canvas id="newDataChart"></canvas>
+        </div>
+        <div class="card">
+            <canvas id="weatherChart"></canvas>
+        </div>
+        <div class="card">
+            <canvas id="pmChart"></canvas>
+        </div>
+
+        <div class="section">
+            <h2>PiVPN Status</h2>
+            <div class="status-box">
+                <pre id="pivpnStatusBlock">{{ pivpn_status | safe }}</pre>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Outdoor Weather</h2>
+            <canvas id="weatherChartOUT"></canvas>
+        </div>
+    </section>
+
+    <!-- SCRIPTS -->
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const metricsContainer = document.getElementById("metricsContainer");
+
+            const metricGroups = {
+                "🖥 System": [
+                    ["🧭 Node", "hostname", ""],
+                    ["🟢 Status", "status", ""],
+                    ["⏱️ Uptime", "uptime", ""],
+                    ["📊 Load Avg", "load_line1", ""],
+                    ["⚙️ CPU Load", "load_line2", ""],
+                    ["🌡 CPU Temp", "latestTemperature", "°C"],
+                    ["📈 RAM Usage", "ramperc", ""],
+                    ["⚙️ CPU Usage", "latestCpu", ""],
+                    ["💾 Disk", ["usedSpace", "allSpace"], "GB"]
+                ],
+                "🌐 Network": [
+                    ["📡 Local IP", "local_ip", ""],
+                    ["🌐 Public IP", "public_ip", ""],
+                    ["⬇️ RX VPN", "latestRX", ""],
+                    ["⬆️ TX VPN", "latestTX", ""],
+                    ["🌐 Ping", "netPing", ""],
+                    ["📉 Packet Loss", "netLoss", ""],
+                    ["🛣 Gateway", "netGateway", ""],
+                    ["🧠 DNS", "netDNS", ""]
+                ],
+                "🌤 Air Quality": [
+                    ["🌡 Temp", "latestTemp", ""],
+                    ["🌡️ Real Feel", "realFeelTemp", ""],
+                    ["💧 Humidity", "latestHum", "%"],
+                    ["📊 Pressure", "latestPressure", "hPa"],
+                    ["🧪 Gas", "latestGAS", ""],
+                    ["🌫 PM1.0", "latestPM1", "µg/m³"],
+                    ["🌫 PM2.5", "latestPM25", "µg/m³"],
+                    ["🌫 PM10", "latestPM100", "µg/m³"],
+                ]
+            };
+
+            // Render static metric groups
+            Object.entries(metricGroups).forEach(([groupName, metrics]) => {
+                const groupDiv = document.createElement("div");
+                groupDiv.className = "metrics-group";
+                groupDiv.innerHTML = `<h3>${groupName}</h3>`;
+
+                metrics.forEach(([label, id, unit]) => {
+                    const valueHTML = typeof id === "string"
+                        ? `<span id="${id}">--</span> ${unit}`
+                        : `<span><span id="${id[0]}">--</span> / <span id="${id[1]}">--</span> ${unit}</span>`;
+
+                    groupDiv.innerHTML += `
+                <div class="metric-item">
+                    <div>${label}</div>
+                    <div>${valueHTML}</div>
+                </div>
+            `;
+                });
+
+                metricsContainer.appendChild(groupDiv);
+            });
+
+
+            // Helpers
+            function formatBytes(value) {
+                if (value < 1e3) return value + " B";
+                if (value < 1e6) return (value / 1e3).toFixed(2) + " KB";
+                if (value < 1e9) return (value / 1e6).toFixed(2) + " MB";
+                return (value / 1e9).toFixed(2) + " GB";
+            }
+
+            function cToF(celsius) {
+                return (celsius * 9 / 5 + 32).toFixed(1);
+            }
+
+            function setColorByValue(id, value, thresholds) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.classList.remove("low", "medium", "high");
+                if (value < thresholds.low) {
+                    el.classList.add("low");
+                } else if (value < thresholds.high) {
+                    el.classList.add("medium");
+                } else {
+                    el.classList.add("high");
+                }
+            }
+
+            function calculateRealFeel(tempC, humidity, windKmh) {
+                const tempF = tempC * 9 / 5 + 32;
+                if (tempC >= 27 && humidity >= 40) {
+                    const hiF = -42.379 + 2.04901523 * tempF + 10.14333127 * humidity - 0.22475541 * tempF * humidity
+                        - 0.00683783 * tempF * tempF - 0.05481717 * humidity * humidity
+                        + 0.00122874 * tempF * tempF * humidity + 0.00085282 * tempF * humidity * humidity
+                        - 0.00000199 * tempF * tempF * humidity * humidity;
+                    return ((hiF - 32) * 5 / 9).toFixed(1);
+                }
+                if (tempC <= 10 && windKmh > 4.8) {
+                    const wcC = 13.12 + 0.6215 * tempC - 11.37 * Math.pow(windKmh, 0.16) + 0.3965 * tempC * Math.pow(windKmh, 0.16);
+                    return wcC.toFixed(1);
+                }
+                return tempC.toFixed(1);
+            }
+
+            function updateAirQuality(latest) {
+                document.getElementById("latestTemp").innerText = `${latest.temperature}°C / ${cToF(latest.temperature)}°F`;
+                setColorByValue("latestTemp", +latest.temperature, { low: 20, high: 30 });
+
+                document.getElementById("latestHum").innerText = latest.humidity;
+                setColorByValue("latestHum", +latest.humidity, { low: 30, high: 60 });
+
+                document.getElementById("latestPressure").innerText = latest.pressure;
+
+                document.getElementById("latestGAS").innerText = latest.gas;
+                setColorByValue("latestGAS", +latest.gas, { low: 200, high: 400 });
+
+                document.getElementById("latestPM1").innerText = latest.pm10;
+                setColorByValue("latestPM1", +latest.pm10, { low: 15, high: 50 });
+
+                document.getElementById("latestPM25").innerText = latest.pm25;
+                setColorByValue("latestPM25", +latest.pm25, { low: 15, high: 50 });
+
+                document.getElementById("latestPM100").innerText = latest.pm100;
+                setColorByValue("latestPM100", +latest.pm100, { low: 15, high: 50 });
+
+                const realFeel = calculateRealFeel(+latest.temperature, +latest.humidity, (latest.wind || 2) * 3.6);
+                document.getElementById("realFeelTemp").textContent = `${realFeel}°C / ${cToF(realFeel)}°F`;
+                setColorByValue("realFeelTemp", +realFeel, { low: 20, high: 30 });
+            }
+
+            function formatTimestamp(dateStr) {
+                const d = new Date(dateStr);
+                return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')} ${d.toLocaleDateString('en-US', { weekday: 'short' })} ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })}`;
+            }
+
+            function createLineChart(canvasId, labels, datasets) {
+                const ctx = document.getElementById(canvasId).getContext('2d');
+                return new Chart(ctx, {
+                    type: 'line',
+                    data: { labels, datasets },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: { grid: { display: true } }
+                        }
+                    }
+                });
+            }
+
+            function updateMetrics() {
+                fetch('/json_system_info')
+                    .then(res => res.json())
+                    .then(data => {
+                        document.getElementById('hostname').textContent = data.hostname;
+                        document.getElementById('status').textContent = data.status;
+                        document.getElementById('local_ip').textContent = data.local_ip;
+                        document.getElementById('public_ip').textContent = data.public_ip;
+                        document.getElementById('uptime').textContent = data.uptime;
+                        document.getElementById('load_line1').textContent = `1m: ${data.load_1}, 5m: ${data.load_5}, 15m: ${data.load_15}`;
+                        document.getElementById('load_line2').textContent = `Cores: ${data.cores}, Load: ${data.load_percent}`;
+                        document.getElementById('netPing').textContent = data.ping !== null ? `${data.ping} ms` : 'N/A';
+                        document.getElementById('netLoss').textContent = data.packet_loss !== null ? `${data.packet_loss}%` : 'N/A';
+                        document.getElementById('netGateway').textContent = data.gateway;
+                        document.getElementById('netDNS').textContent = Array.isArray(data.dns) ? data.dns.join(', ') : 'N/A';
+                    });
+
+                fetch('/json_data')
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.length) return;
+                        const latest = data[data.length - 1];
+                        document.getElementById("latestTemperature").innerText = latest.temperature;
+                        setColorByValue("latestTemperature", +latest.temperature, { low: 50, high: 70 });
+                        document.getElementById("ramperc").innerText = latest.ramperc + "%";
+                        setColorByValue("ramperc", +latest.ramperc, { low: 40, high: 80 });
+                        document.getElementById("latestCpu").innerText = latest.cpu + "%";
+                        setColorByValue("latestCpu", +latest.cpu, { low: 30, high: 70 });
+                        document.getElementById("usedSpace").innerText = latest.usedspace;
+                        document.getElementById("allSpace").innerText = latest.allSpace;
+
+                        createLineChart('combinedChart',
+                            data.map(d => formatTimestamp(d.date)),
+                            [
+                                { label: 'Temperature', data: data.map(d => +d.temperature), borderColor: 'red' },
+                                { label: '%RAM', data: data.map(d => +d.ramperc), borderColor: 'blue' },
+                                { label: '%CPU', data: data.map(d => +d.cpu), borderColor: 'green' },
+                                { label: '%Disk', data: data.map(d => +d.diskperc), borderColor: 'purple' }
+                            ].map(ds => ({ ...ds, fill: false, borderWidth: 1, tension: 0.4, pointRadius: 0 }))
+                        );
+                    });
+
+                fetch('/json_dataWG')
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.length) return;
+                        const latest = data[data.length - 1];
+                        document.getElementById("latestRX").innerText = formatBytes(latest.RX);
+                        document.getElementById("latestTX").innerText = formatBytes(latest.TX);
+
+                        createLineChart('newDataChart',
+                            data.map(d => formatTimestamp(d.date)),
+                            [
+                                { label: 'RX Data (MB)', data: data.map(d => (+d.RXdiff / 1e6).toFixed(2)), borderColor: '#4BC0C0' },
+                                { label: 'TX Data (MB)', data: data.map(d => (+d.TXdiff / 1e6).toFixed(2)), borderColor: '#FF6384' }
+                            ].map(ds => ({ ...ds, fill: false, borderWidth: 1, tension: 0.4, pointRadius: 0 }))
+                        );
+                    });
+
+                fetch('/json_data_weather')
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.length) return;
+                        const latest = data[data.length - 1];
+                        updateAirQuality(latest);
+
+
+                        createLineChart('weatherChart',
+                            data.map(d => formatTimestamp(d.date)),
+                            [
+                                { label: 'Temperature', data: data.map(d => +d.temperature), borderColor: '#F51A00' },
+                                { label: 'Humidity', data: data.map(d => +d.humidity), borderColor: '#0003F5' },
+                                { label: 'Pressure%', data: data.map(d => (+d.pressure - 980) / 60 * 100), borderColor: '#39F545' },
+                                { label: 'Gas', data: data.map(d => +d.gas), borderColor: 'gray' }
+                            ].map(ds => ({ ...ds, fill: false, borderWidth: 1, tension: 0.4, pointRadius: 0 }))
+                        );
+
+                        createLineChart('pmChart',
+                            data.map(d => formatTimestamp(d.date)),
+                            [
+                                { label: 'PM1.0', data: data.map(d => +d.pm10), borderColor: 'black' },
+                                { label: 'PM2.5', data: data.map(d => +d.pm25), borderColor: '#444' },
+                                { label: 'PM100', data: data.map(d => +d.pm100), borderColor: '#888' }
+                            ].map(ds => ({ ...ds, fill: false, borderWidth: 1, tension: 0.4, pointRadius: 0 }))
+                        );
+                    });
+
+                fetch('https://api.weather.gov/stations/KLGA/observations')
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.features) return;
+                        const reversed = data.features.reverse();
+                        createLineChart('weatherChartOUT',
+                            reversed.map(d => formatTimestamp(d.properties.timestamp)),
+                            [
+                                { label: 'Pressure OUT%', data: reversed.map(d => Math.max(0, (+d.properties.barometricPressure.value / 100 - 980) / 60 * 100)), borderColor: '#5AA05F' },
+                                { label: 'Temp OUT', data: reversed.map(d => +d.properties.temperature.value), borderColor: 'red' },
+                                { label: 'Humidity OUT%', data: reversed.map(d => +d.properties.relativeHumidity.value), borderColor: 'blue' },
+                                { label: 'Visibility KM', data: reversed.map(d => +d.properties.visibility.value / 1000), borderColor: '#434B44' },
+                                { label: 'Dewpoint', data: reversed.map(d => +d.properties.dewpoint.value), borderColor: 'orange' }
+                            ].map(ds => ({ ...ds, fill: false, borderWidth: 2, tension: 0.4, pointRadius: 0 }))
+                        );
+                    });
+            }
+
+            // Initial + interval updates
+            updateMetrics();
+            setInterval(updateMetrics, 300000); // Refresh every 5 minutes
+        });
+    </script>
+
+</body>
+
+</html>
